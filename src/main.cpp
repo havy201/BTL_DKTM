@@ -25,9 +25,8 @@
 #pragma region khai báo biến toàn cục
 // Khai báo khoảng cách đo
 float minDist = 5.0;   // dưới 5 cm thì dừng xe (quá gần, nguy hiểm)
-float maxDist = 100.0; // trên 70 cm thì dừng xe (mất vật, vượt tầm đo)
-
-float setpoint = 40.0; // Khoảng cách mong muốn (cm)
+float maxDist = 100.0; // trên 100 cm thì dừng xe (mất vật, vượt tầm đo)
+float setpoint = 30.0; // Khoảng cách mong muốn (cm)
 float scaleFactor = 1.00;
 float offset = 0;
 float distanceC;
@@ -43,7 +42,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #pragma region gain của e, de, v
 float Ke = 1.0 / (100.0 - 24.80); // Gain scale error
 float Kde = 0.01;                 // Gain scale derivative
-float Kv = 120.0;                 // Gain scale fuzzy output -> PWM
+float Kv = 90;                    // Gain scale fuzzy output -> PWM
 float Kmin = 75;                  // Giá trị PWM tối thiểu
 float percentKmin = 0.1;          // Phần trăm của Kv để lấy Kmin
 #pragma endregion
@@ -163,6 +162,7 @@ void motorControl(int rightMotorSpeed, int leftMotorSpeed)
   // Dead zone - Vùng chết để tránh rung
   if (abs(rightMotorSpeed) < Kmin || abs(leftMotorSpeed) < Kmin)
   {
+
     // Dừng xe
     digitalWrite(IN1, LOW);
     digitalWrite(IN2, LOW);
@@ -260,9 +260,6 @@ void setup()
 
   lcd.init();
   lcd.backlight();
-
-  lcd.setCursor(0, 0);
-  lcd.print("Khoang cach do:");
 }
 
 void loop()
@@ -311,7 +308,6 @@ void loop()
   deltaErrorFiltered =
       (factorFilter / (factorFilter + dt)) * deltaErrorFiltered +
       (dt / (factorFilter + dt)) * deltaError;
-  prevError = error;
 
   // 5. Gain scaling
   float e_scaled = gain_Ke(error);
@@ -324,39 +320,33 @@ void loop()
   int motorSpeed = (int)gain_Kv(u_norm);
 
   // 8. Điều khiển động cơ
+  // if (abs(motorSpeed) < Kmin && error < 1.6 && abs(prevError - error) < 0.3)
+  // {
+  //   motorControl(-Kmin, -Kmin);
+  //   delay(700); // Dừng xe trong 700ms nếu quá gần
+  //   motorControl(0, 0);
+  // }
+  // else if (abs(motorSpeed) < Kmin && error > -1.6 && abs(prevError - error) < 0.3)
+  // {
+  //   motorControl(-Kmin, -Kmin);
+  //   delay(700); // Dừng xe trong 700ms nếu quá gần
+  //   motorControl(0, 0);
+  // }
+  prevError = error;
   motorControl(motorSpeed, motorSpeed);
 
-  // 9. Hiển thị thông tin lên Serial Monitor
-  Serial.print("Dist: ");
-  Serial.print(distanceC, 2);
-  Serial.print(" cm | ");
-
-  Serial.print("Err: ");
-  Serial.print(error, 2);
-  Serial.print(" | ");
-
-  Serial.print("dErr: ");
-  Serial.print(deltaError, 2);
-  Serial.print(" | ");
-
-  Serial.print("e*: ");
-  Serial.print(e_scaled, 3);
-  Serial.print(" | ");
-
-  Serial.print("de*: ");
-  Serial.print(de_scaled, 3);
-  Serial.print(" | ");
-
-  Serial.print("u: ");
-  Serial.print(u_norm, 3);
-  Serial.print(" | ");
-
-  Serial.print("PWM: ");
   Serial.println(motorSpeed);
+  lcd.setCursor(0, 0);
+  lcd.print("               ");
+  lcd.setCursor(0, 0);
+  lcd.print("V= ");
+  lcd.setCursor(3, 0);
+  lcd.print(motorSpeed);
   lcd.setCursor(0, 1);          // Dòng 2
   lcd.print("               "); // Xóa dòng để tránh dính chữ cũ
   lcd.setCursor(0, 1);
-
+  lcd.print("D= ");
+  lcd.setCursor(3, 1);
   lcd.print(distanceC);
   // Đợi trước khi đọc lần tiếp theo
   delay(100);
